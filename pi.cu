@@ -11,8 +11,8 @@ History: Written by Tim Mattson, 11/99.
 #include <stdio.h>
 /*#include <omp.h>*/
 
-#define BLOCK 13
-#define THREAD 192
+#define BLOCK 64
+#define THREAD 256  
 #define NUMSTEPS 1000000000
 double step;
 int tid;
@@ -29,8 +29,8 @@ __global__ void cal_pi(float *sum, int nbin, float step, int nthreads, int nbloc
 
 int main ()
 {
-		dim3 dimGrid(BLOCK,1,1);
-		dim3 dimBlock(THREAD,1,1);
+		dim3 dimGrid(BLOCK,1,1); // 	
+		dim3 dimBlock(THREAD,1,1); //
 	  int i;
 
 	  double start_time, run_time;
@@ -39,27 +39,31 @@ int main ()
 		cudaEventCreate(&start);
 		cudaEventCreate(&stop);
 		cudaEventRecord(start,0);
-	  float step = 1.0/NUMSTEPS;
+
+
+	  	float step = 1.0/NUMSTEPS;
 		float *dev_x, *dev_pi, *dev_sum,*sum_host;
 		size_t size = BLOCK*THREAD*sizeof(float);  //Taille mémoire
+		
+
 		sum_host = (float *)malloc(size);  //Allocation de la mémoire
 		cudaMalloc((void **)&dev_sum,size); //Allocation de la mémoire au GPU
 		cudaMemset(dev_sum, 0, size); //Initialisation du tableau à 0
 
 		cal_pi <<<dimGrid, dimBlock >>> (dev_sum,NUMSTEPS,step,THREAD,BLOCK);
 
-		cudaMemcpy(sum_host,dev_sum,size, cudaMemcpyDeviceToHost);
-		// Copie du résultat du GPU vers le CPU
-		for(tid=0; tid<THREAD*BLOCK; tid++)
+		cudaMemcpy(sum_host,dev_sum,size, cudaMemcpyDeviceToHost);// Copie du résultat du GPU vers le CPU
+		
+		for(tid=0; tid<THREAD*BLOCK; tid++) // on rassemble toutes les sommes 
 			pi += sum_host[tid];
 		pi *= step;
 
 		cudaEventRecord(stop,0);
 		cudaEventSynchronize( stop );
-    cudaEventElapsedTime( &elapsedTime,start, stop );
-    cudaEventDestroy( start );
-    cudaEventDestroy( stop );
+    		cudaEventElapsedTime( &elapsedTime,start, stop );
+   	 	cudaEventDestroy( start );
+    		cudaEventDestroy( stop );
 		free(sum_host);
 		cudaFree(dev_sum);
-	  printf("\n pi is %f in %f milliseconds\n ",pi,elapsedTime);
+	  	printf("\n pi is %f in %f milliseconds\n ",pi,elapsedTime);
 }
